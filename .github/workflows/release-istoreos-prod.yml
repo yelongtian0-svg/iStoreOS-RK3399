@@ -1,0 +1,29 @@
+- name: 🛠 提取并修改 EMB-3531 设备树
+        run: |
+          # 1. 安装设备树工具 (Device Tree Compiler)
+          sudo apt-get update && sudo apt-get install -y device-tree-compiler
+          
+          # 2. 模拟 Action 下载并解压内核包 (以日志中的 6.1.163 为例)
+          wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.163.tar.gz
+          tar -zxf 6.1.163.tar.gz
+          
+          # 3. 定位 DTB 文件 (它通常在解压后的 dtb 目录下)
+          # 注意：find 会帮你找到真正的物理路径
+          TARGET_DTB=$(find . -name "*emb3531*.dtb" | head -n1)
+          echo "✅ 找到目标 DTB: $TARGET_DTB"
+          
+          # 4. 反编译二进制 DTB 为文本 DTS
+          dtc -I dtb -O dts "$TARGET_DTB" -o modified.dts
+          
+          # 5. 【关键修改区】使用 sed 修改 DTS 内容
+          # 示例：假设我们要修复 I2C 丢失引脚的问题（模拟你之前的 patch）
+          # 逻辑：在 i2c 节点后插入 pinctrl 定义
+          sed -i '/i2c@ff3d0000 {/a \			pinctrl-0 = <&i2c0_xfer>;' modified.dts
+          sed -i 's/status = "disabled";/status = "okay";/g' modified.dts # 示例：强制开启某节点
+          
+          # 6. 回编为二进制 DTB 并覆盖原文件
+          dtc -I dts -O dtb modified.dts -o "$TARGET_DTB"
+          
+          # 7. 重新打包内核压缩包供后续 Action 使用
+          # 或者直接将此目录路径设为环境变量，让打包 Action 优先读取
+          echo "PACKAGED_DTB_DIR=$(pwd)/dtb/rockchip" >> $GITHUB_ENV
