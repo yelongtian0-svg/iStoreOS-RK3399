@@ -15,6 +15,7 @@ on:
         type: choice
         options:
           - am40
+          - emb-3531
           - dg3399
           - dlfr100
           - fine3399
